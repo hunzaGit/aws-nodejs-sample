@@ -1,35 +1,81 @@
 // Load the SDK and UUID
 var AWS = require('aws-sdk');
-// Create an S3 client
-var s3 = new AWS.S3();
+var fs = require('fs');
+
+//var s3 = require('aws-sdk/clients/s3');
 
 // Create a bucket and upload something into it
 var bucketName = 'pruebabucketpublicos3';
-var keyName = 'pruebaPublicaURL3.txt';
+var keyName = 'pruebaSobreescritura';
 var AWSService = 's3',
     region = 'eu-west-1',
     host = 'amazonaws.com';
 
 
+AWS.config.update({
+    region: region,
+    /*credentials: new AWS.CognitoIdentityCredentials({
+        IdentityPoolId: IdentityPoolId
+    })*/
+});
+
+// Create an S3 client
+var s3 = new AWS.S3({
+    apiVersion: '2006-03-01',
+    params: {Bucket: bucketName}
+});
 
 
 
-
+//ListarAlbums
+//listAlbums();
 
 //crear un album (directorio)
-createAlbum('59987e91b15f750950246e96');
+//createAlbum('nuevaConfig');
 
 //Añadir un objeto a un album
-addPhoto('59987e91b15f750950246e96');
+addPhoto('perro.js','nuevaConfig');
+
+/*
+    ["obj1", "obj2", "obj3", "obj4", "obj5", "obj6", "obj7", "obj8",]
+        .forEach(elem => {
+            addPhoto(elem, 'nuevaConfig');
+        });
+*/
+
+//viewAlbum('nuevaConfig');
+
+
+
+
+function listAlbums() {
+    s3.listObjects({Delimiter: '/'}, function (err, data) {
+        if (err) {
+            return alert('There was an error listing your albums: ' + err.message);
+        } else {
+            console.log(data);
+
+            data.CommonPrefixes
+                .map(function (commonPrefix) {
+                    var prefix = commonPrefix.Prefix;
+                    var albumName = decodeURIComponent(prefix.replace('/', ''));
+                    return albumName;
+                })
+                .forEach(album => {
+                    console.log(album);
+                });
+
+        }
+    });
+}
 
 
 //s3.createBucket({Bucket: bucketName}, function() {
 //});
 
-function crearObjeto () {
+function crearObjeto() {
 
     var params = {
-        Bucket: bucketName,
         Key: keyName,
         Body: 'prueba para ver la URL publica',
         ACL: 'public-read'
@@ -42,7 +88,7 @@ function crearObjeto () {
             console.log(data);
             console.log("Successfully uploaded data to " + bucketName + "/" + keyName);
 
-            var URL_FILE = 'https://' + AWSService + '-' + region +'.'+ host + '/' + bucketName +'/'+ keyName;
+            var URL_FILE = 'https://' + AWSService + '-' + region + '.' + host + '/' + bucketName + '/' + keyName;
             console.log('URL: ' + URL_FILE);
         }
     });
@@ -50,7 +96,6 @@ function crearObjeto () {
 }
 
 //});
-
 
 
 function createAlbum(albumName) {
@@ -65,9 +110,8 @@ function createAlbum(albumName) {
 
     //comprobar si el directorio existe y si es correcto
     s3.headObject({
-        Bucket: bucketName,
         Key: albumKey
-    }, function(err, data) {
+    }, function (err, data) {
 
         if (!err) {
             return console.log('Album already exists.');
@@ -78,44 +122,96 @@ function createAlbum(albumName) {
 
         //Insertar album
         s3.putObject({
-            Bucket: bucketName,
-            Key: albumKey
-        }, function(err, data) {
+           Key: albumKey
+        }, function (err, data) {
 
             if (err) {
                 return console.log('There was an error creating your album: ' + err.message);
             }
             console.log('Successfully created album.');
-            var URL_FILE = 'https://' + AWSService + '-' + region +'.'+ host + '/' + bucketName +'/'+ albumKey;
-            console.log('URL: ' + URL_FILE);
+            //var URL_FILE = 'https://' + AWSService + '-' + region + '.' + host + '/' + bucketName + '/' + albumKey;
+            //console.log('URL: ' + URL_FILE);
         });
     });
 }
 
 
-function addPhoto(albumName) {
-    var file = "cuerpo de la foto";
-    /*var files = document.getElementById('photoupload').files;
-    if (!files.length) {
+function addPhoto(fileName, albumName) {
+    //var bodyFile = "cuerpo del fichero version 2";
+    var bodyFile = fs.readFileSync(fileName);
+    console.log(bodyFile);
+
+    console.log(bodyFile.type);
+
+    if (!bodyFile.length) {
         return console.log('Please choose a file to upload first.');
     }
-    var file = files[0];
-    var fileName = file.name;
-    */
+
     var albumPhotosKey = encodeURIComponent(albumName) + '/';
 
-    var photoKey = albumPhotosKey + keyName;
+    var photoKey = albumPhotosKey + fileName;
+
+    var time1 = new Date().getTime();
     s3.upload({
-        Bucket: bucketName,
         Key: photoKey,
-        Body: file,
+        Body: bodyFile,
         ACL: 'public-read'
-    }, function(err, data) {
+    }, function (err, data) {
         if (err) {
             return console.log('There was an error uploading your photo: ', err.message);
         }
-        console.log('Successfully uploaded photo.');
-        var URL_FILE = 'https://' + AWSService + '-' + region +'.'+ host + '/' + bucketName +'/' + albumName+ '/'+ keyName;
-        console.log('URL: ' + URL_FILE);
+        console.log(data);
+        console.log(data.Bucket)
+        console.log(data.Key);
+        //console.log('Successfully uploaded photo.');
+        var URL_FILE = 'https://' + AWSService + '-' + region + '.' + host + '/' + bucketName + '/' + photoKey;
+        console.log('URL1: ' + URL_FILE);
+
+        var URL_FILE2 = data.Location;
+        console.log('URL2: ' + URL_FILE2);
+
+        var time2 = new Date().getTime();
+        console.log((time2-time1)/1000 + 'seg');
+    });
+
+}
+
+function viewAlbum(albumName) {
+    var albumPhotosKey = encodeURIComponent(albumName) + '/';
+    s3.listObjects({Prefix: albumPhotosKey}, function(err, data) {
+        if (err) {
+            return alert('There was an error viewing your album: ' + err.message);
+        }
+        // `this` references the AWS.Response instance that represents the response
+        var href = this.request.httpRequest.endpoint.href;
+        var bucketUrl = href + bucketName + '/';
+
+        console.log(data);
+        data.Contents
+            .map(function(photo) {
+                var photoKey = photo.Key;
+                var photoUrl = bucketUrl + encodeURIComponent(photoKey);
+                return photoUrl;
+            })
+            .forEach((photo)=>{
+                console.log(photo);
+            });
+
+        console.log('bucketURL: '+ bucketUrl);
+
+
     });
 }
+
+function deletePhoto(albumName, photoKey) {
+    s3.deleteObject({Key: photoKey}, function(err, data) {
+        if (err) {
+            return alert('There was an error deleting your photo: ', err.message);
+        }
+        alert('Successfully deleted photo.');
+        viewAlbum(albumName);
+    });
+}
+
+
+

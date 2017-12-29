@@ -3,7 +3,7 @@
     "start": "node sample.js"
   },
   "dependencies": {
-    "aws-sdk": ">= 2.0.9",
+    "aws-sdk": "2.4.8",
     "node-uuid": ">= 1.4.1"
   }
 }
